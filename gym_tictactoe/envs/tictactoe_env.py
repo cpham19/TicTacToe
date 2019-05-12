@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QProgressDialog
 from PyQt5.QtCore import *
-import gym, numpy as np, random
+import gym, numpy as np, random, copy
 from gym import error, spaces, utils
 from gym.utils import seeding
 from gym_tictactoe.envs.tictactoe_agent import PlayerAgent, TicTacToeAgent
@@ -50,6 +50,9 @@ class TicTacToe(gym.Env):
 
 
 	def __init__(self):
+		self.matchHistory = []
+		self.formattedMatchHistory = []
+
 		self.playerWins = 0
 		self.bot1Wins = 0
 
@@ -59,9 +62,11 @@ class TicTacToe(gym.Env):
 
 		self.state = [[' ', ' ', ' '],[' ', ' ', ' '],[' ', ' ', ' ']]
 		self.turns = 0
+		self.matchs = 1
 		self.done = 0
-		self.validMove = True
 		self.draws = 0
+		self.validMove = True
+		self.training = False
 
 	def init(self, player1, bot1, bot2):
 		# Represents the player
@@ -176,6 +181,7 @@ class TicTacToe(gym.Env):
 				self.bot1Wins += 1
 
 			#print(checkState['winner'] + " wins.", sep="", end="\n")
+			self.matchs += 1
 
 		# If the game's outcome is draw
 		elif (checkState['win'] == False and self.done == 1):
@@ -187,8 +193,10 @@ class TicTacToe(gym.Env):
 				self.rewardBot(self.bot1, 0.5)
 
 			#print("DRAW! No one wins!")
+			self.matchs += 1
 
 		stateObj['state'] = self.state
+		stateObj['turn'] = self.turns
 		stateObj['done'] = self.done
 		stateObj['winner'] = checkState['winner']
 		stateObj['validMove'] = self.validMove
@@ -246,7 +254,9 @@ class TicTacToe(gym.Env):
 	def reset(self):
 		# Randomize the player who goes first
 		self.turn = self.player.mark if (random.randint(0, 1) == 0) else self.bot1.mark
-		self.state = [[' ', ' ', ' '],[' ', ' ', ' '],[' ', ' ', ' ']]
+		for row in range(0, len(self.state)):
+			for col in range(0, len(self.state[row])):
+				self.state[row][col] = ' '
 		self.turns = 0
 		self.done = 0
 		self.validMove = True
@@ -265,9 +275,22 @@ class TicTacToe(gym.Env):
 				print('\n---------')
 		print("\n")
 
-	def train(self, games, page):
-		print("TRAINING PHASE")
+	def convertMatchHistory(self, matchHistory):
+		formattedMatchHistory = []
 
+		for match in matchHistory:
+			array = []
+			array.append(match['number'])
+			array.append(match['type'])
+			array.append(match['player1'])
+			array.append(match['player2'])
+			array.append(len(match['turns']))
+			array.append(match['winner'])
+			formattedMatchHistory.append(array)
+
+		return formattedMatchHistory
+
+	def train(self, games, page):
 		progress = QProgressDialog("Please wait, the bot is being trained!", "Cancel", 0, games, page)
 		progress.setWindowModality(Qt.WindowModal)
 		progress.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.CustomizeWindowHint)
@@ -298,28 +321,53 @@ class TicTacToe(gym.Env):
 		for i in range(1, games + 1):
 			self.reset()
 			progress.setValue(i)
+			match = {}
+			match['number'] = self.matchs
+			match['type'] = 'Training'
+			match['player1'] = self.player.name
+			match['player2'] = self.bot1.name
+			match['turns'] = []
 
 			while (True):
 				stateObj = None
 				if(self.turn == self.bot2.name):
 					action = self.bot2.action(self.state)
 					stateObj = self.step(action, self.bot2.mark)
-					self.turn = self.bot1.name
 
+					# Bot makes invalid move
 					while (type(self.bot2) == TicTacToeAgent and stateObj['validMove'] != True):
 						action = self.bot2.action(self.state)
 						stateObj = self.step(action, self.bot2.mark)
 
+					turn = {}
+					turn['number'] = stateObj['turn']
+					turn['playerTurn'] = self.bot2.name
+					turn['state'] = copy.deepcopy(stateObj['state'])
+					match['turns'].append(turn)
+
+					self.turn = self.bot1.name
+
 				else:
 					action = self.bot1.action(self.state)
 					stateObj = self.step(action, self.bot1.mark)
-					self.turn = self.bot2.name
 
+					# Bot makes invalid move
 					while(type(self.bot1) == TicTacToeAgent and stateObj['validMove'] != True):
 						action = self.bot1.action(self.state)
 						stateObj = self.step(action, self.bot1.mark)
 
+					turn = {}
+					turn['number'] = stateObj['turn']
+					turn['playerTurn'] = self.bot2.name
+					turn['state'] = copy.deepcopy(stateObj['state'])
+					match['turns'].append(turn)
+
+					self.turn = self.bot2.name
+
+
 				if (stateObj['done'] == 1):
+					match['winner'] = stateObj['winner']
+					self.matchHistory.append(match)
 					break
 
 		progress.close()
@@ -338,5 +386,7 @@ class TicTacToe(gym.Env):
 		self.playerWins = playerWins
 		self.bot1Wins = bot1Wins
 		self.draws = draws
+
+		self.formattedMatchHistory = self.convertMatchHistory(self.matchHistory)
 
 		return trainObj
