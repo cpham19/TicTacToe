@@ -1,5 +1,6 @@
 import random, numpy as np
 
+# Represents the player
 class PlayerAgent:
 	def __init__(self, name, mark):
 		self.name = name
@@ -31,14 +32,19 @@ class PlayerAgent:
 		move = random.sample(numbers, 1)[0]
 		return move
 
+
+# Represents the bot playing against the player, as well as other bots to play against the bot for training
 class TicTacToeAgent(PlayerAgent):
 	def __init__(self, name, mark):
 		super().__init__(name, mark)
+		# Used for calculating the value of intermediate states during temporal difference learning
 		self.learning_rate = 0.5
+		# Used for reducing the reward to pass on for intermediate states
 		self.discount_factor = 0.01
+		# Floating number < 1.0, probability for the bot to explore the game
 		self.exploration_rate = 0.33
 
-		self.q_states = {}
+		self.states = {}
 		self.state_order = []
 
 		self.name = name
@@ -92,7 +98,7 @@ class TicTacToeAgent(PlayerAgent):
 
 	# Determine the move for bot
 	def action(self, state):
-		# One dimensionl array of the current state of the game
+		# One dimensional array of the current state of the game
 		current_state = np.array(state).ravel()
 
 		# State key for recording movements
@@ -116,10 +122,10 @@ class TicTacToeAgent(PlayerAgent):
 
 		possible_moves = []
 		# For Exploiting: If the bot remembers the current state, it can make a calculated move
-		if (not exploration and state_key in self.q_states):
+		if (not exploration and state_key in self.states):
 			#print("EXPLOITING")
 			# Get the q values of the currnt state (these are the numbers that are constantly changing after rewarding and punishing the bot)
-			state_values = self.q_states[state_key].ravel()
+			state_values = self.states[state_key].ravel()
 			#print(state_values)
 
 			max_reward = np.max(state_values)

@@ -1,15 +1,16 @@
-from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QMessageBox, QLabel
+from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QMessageBox, QLabel, QDialog, QDialogButtonBox, QGroupBox, QTextEdit
 from PyQt5.QtCore import *
 from tictactoebutton import TicTacToeButton
 from gym_tictactoe.envs.tictactoe_agent import PlayerAgent, TicTacToeAgent
-import random, winsound, playsound, pygame
+import random, winsound, playsound, pygame, copy, time, numpy as np
 
 # Gamepage for Player vs Computer
 class GamePageForPlayerVsComputer(QWidget):
-    def __init__(self, env, layout, log):
+    def __init__(self, env, layout, historyTableViewModel, log):
         super().__init__()
         self.env = env
         self.layout = layout
+        self.historyTableViewModel = historyTableViewModel
         self.log = log
         self.setup()
 
@@ -113,54 +114,43 @@ class GamePageForPlayerVsComputer(QWidget):
             button.setText(self.env.player.mark)
             button.setStyleSheet("font: bold;background-color: pink;font-size: 36px;height: 80px")
             button.setDisabled(True)
+
+            stateObj = self.env.step(button.number, self.env.player.mark)
+            turn = {}
+            turn['number'] = stateObj['turn']
+            turn['playerTurn'] = self.playerTurn
+            turn['state'] = copy.deepcopy(stateObj['state'])
+            self.match['turns'].append(turn)
+
             self.playerTurn = self.env.bot1.name
             self.playerTurnLabel.setText("Player's Turn: " + self.playerTurn)
 
-            stateObj = self.env.step(button.number, self.env.player.mark)
-            print("PLAYERS MOVE")
-            print(stateObj)
-            print()
+            self.checkState(stateObj)
 
-            if (stateObj['done'] == 1 and stateObj['winner'] != 'None'):
-                self.playerWinsLabel.setText(self.env.player.name + " Wins: " + str(self.env.playerWins))
-                self.computerWinsLabel.setText(self.env.bot1.name + " Wins: " + str(self.env.bot1Wins))
-                playsound.playsound('sounds/victory.mp3', False)
-                reply = QMessageBox.question(self, stateObj['winner'] + ' wins the game!', 'Do you want to play a new game?', QMessageBox.Yes, QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    self.newGame()
-                else:
-                    pygame.mixer.music.stop()
-                    self.layout.setCurrentIndex(0)
-            elif (stateObj['done'] == 1  and stateObj['winner'] == 'None'):
-                self.drawsLabel.setText("Draws: " + str(self.env.draws))
-                playsound.playsound('sounds/gasp.mp3', False)
-                reply = QMessageBox.question(self, 'Draw! No one won the game.', 'Do you want to play a new game?', QMessageBox.Yes, QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    self.newGame()
-                else:
-                    pygame.mixer.music.stop()
-                    self.layout.setCurrentIndex(0)
-            else:
+            if (stateObj['done'] != 1):
                 # Make a move for the bot after player's move
                 self.makeBotMove()
 
     # Bot makes a move
     def makeBotMove(self):
         winsound.Beep(400, 100)
+
         action = self.env.bot1.action(self.gameboard)
         stateObj = self.env.step(action, self.env.bot1.mark)
-        self.playerTurn = self.env.player.name
-        self.playerTurnLabel.setText("Player's Turn: " + self.playerTurn)
 
         while (type(self.env.bot1) == TicTacToeAgent and stateObj['validMove'] != True):
             action = self.env.bot1.action(self.gameboard)
             stateObj = self.env.step(action, self.env.bot1.mark)
-            print(stateObj)
             break
 
-        print("BOTS MOVE")
-        print(stateObj)
-        print()
+        turn = {}
+        turn['number'] = stateObj['turn']
+        turn['playerTurn'] = self.playerTurn
+        turn['state'] = copy.deepcopy(stateObj['state'])
+        self.match['turns'].append(turn)
+
+        self.playerTurn = self.env.player.name
+        self.playerTurnLabel.setText("Player's Turn: " + self.playerTurn)
 
         for button in self.arrayOfButtons:
             if (button.number == action):
@@ -169,25 +159,165 @@ class GamePageForPlayerVsComputer(QWidget):
                 button.setDisabled(True)
                 button.setStyleSheet("font: bold;background-color: blue;font-size: 36px;height: 80px")
 
-        if (stateObj['done'] == 1 and stateObj['winner'] != 'None'):
+        self.checkState(stateObj)
+
+    def checkState(self, stateObj):
+        # Check if the game is done
+        if (stateObj['done'] == 1):
+            self.match['winner'] = stateObj['winner']
+            self.env.matchHistory.append(self.match)
+            self.env.formattedMatchHistory = self.env.convertMatchHistory(self.env.matchHistory)
+            self.historyTableViewModel.setDataList(self.env.formattedMatchHistory)
             self.playerWinsLabel.setText(self.env.player.name + " Wins: " + str(self.env.playerWins))
             self.computerWinsLabel.setText(self.env.bot1.name + " Wins: " + str(self.env.bot1Wins))
-            playsound.playsound('sounds/victory.mp3', False)
-            reply = QMessageBox.question(self, stateObj['winner'] + ' wins the game!', 'Do you want to play a new game?', QMessageBox.Yes, QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                self.newGame()
-            else:
-                pygame.mixer.music.stop()
-                self.layout.setCurrentIndex(0)
-        elif (stateObj['done'] == 1 and stateObj['winner'] == 'None'):
             self.drawsLabel.setText("Draws: " + str(self.env.draws))
-            playsound.playsound('sounds/gasp.mp3', False)
-            reply = QMessageBox.question(self, 'Draw! No one won the game.', 'Do you want to play a new game?', QMessageBox.Yes, QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                self.newGame()
+
+            if (stateObj['winner'] != 'None'):
+                playsound.playsound('sounds/victory.mp3', False)
             else:
-                pygame.mixer.music.stop()
-                self.layout.setCurrentIndex(0)
+                playsound.playsound('sounds/gasp.mp3', False)
+
+            matchOutput = QDialog()
+            matchOutput.setWindowTitle("Match Results: The winner is: " + stateObj['winner'] + "!")
+            matchOutput.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.CustomizeWindowHint)
+            matchOutput.resize(500, 500)
+
+            matchOutputLayout = QGridLayout()
+            matchOutput.setLayout(matchOutputLayout)
+
+            buttonBox = QDialogButtonBox(Qt.Horizontal, matchOutput)
+            yesButton = QPushButton("Yes")
+            yesButton.clicked.connect(lambda: self.yes(matchOutput))
+            noButton = QPushButton("No")
+            noButton.clicked.connect(lambda: self.no(matchOutput))
+
+            buttonBox.addButton(yesButton, QDialogButtonBox.ActionRole)
+            buttonBox.addButton(noButton, QDialogButtonBox.ActionRole)
+
+            calculationInfoGroupBox = QGroupBox("Calculation Information")
+            calculationInfoLayout = QGridLayout()
+            calculationInfoGroupBox.setLayout(calculationInfoLayout)
+            calculationInfoTextEdit = QTextEdit()
+            calculationInfoTextEdit.setReadOnly(True);
+            calculationInfoTextEdit.append("This is how the bot's reward system is calculated.")
+            calculationInfoTextEdit.append("Original Reward (reward for the last move that the bot makes, 0 for none, 1 for winning, -1 for losing, and 0.5 for draw.): " + str(stateObj['reward']))
+            calculationInfoTextEdit.append(self.env.bot1.name + "'s learning rate: " + str(self.env.bot1.learning_rate))
+            calculationInfoTextEdit.append(self.env.bot1.name + "'s discount factor: " + str(self.env.bot1.discount_factor))
+            calculationInfoTextEdit.append("Reduced Reward (Reward * discount factor): " + str(stateObj['reward'] * self.env.bot1.discount_factor))
+            calculationInfoTextEdit.append("Temporal Difference Formula: Learning Rate * ((reward * last_state) - current_state\n")
+            calculationInfoTextEdit.append("Suppose that...")
+            calculationInfoTextEdit.append("CURRENT STATE\n[[0. 0. 0.]\n [0. 0. 0.] \n [0. 0. 0.]]")
+            calculationInfoTextEdit.append("AND")
+            calculationInfoTextEdit.append("LAST STATE\n[[0. 1. 0.]\n [0. 0. 0.] \n [0. 0. 0.]] where Bot placed a move on the 2nd box\n")
+            calculationInfoTextEdit.append("Temporal Difference = " + str(self.env.bot1.learning_rate) + " * (" + str(stateObj['reward'] * self.env.bot1.discount_factor) + " * 1) - 0 = " + str(self.env.bot1.learning_rate * (stateObj['reward'] * self.env.bot1.discount_factor)))
+            calculationInfoTextEdit.append("So new state is...\n")
+            calculationInfoTextEdit.append("NEW STATE\n[[0. -0.005. 0.]\n [0. 0. 0.] \n [0. 0. 0.]] where Bot placed a move on the 2nd box\n")
+
+            calculationInfoLayout.addWidget(calculationInfoTextEdit)
+
+            matchOutputLayout.addWidget(calculationInfoGroupBox, 0, 0, 1, 3)
+
+            row = 1
+            for state, move in self.env.old_state_order:
+                stateGroupBox = QGroupBox(state + (" (Actual View)"))
+                stateLayout = QGridLayout()
+                stateGroupBox.setLayout(stateLayout)
+                gameboard = self.gameboardToString(self.unserializeState(state))
+                gameboardTextEdit = QTextEdit()
+                gameboardTextEdit.setReadOnly(True);
+                gameboardTextEdit.setText(gameboard)
+                stateLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
+                matchOutputLayout.addWidget(stateGroupBox, row, 0)
+
+                oldStateRewardsGroupBox = QGroupBox("Old State Rewards")
+                oldStateRewardsLayout = QGridLayout()
+                oldStateRewardsGroupBox.setLayout(oldStateRewardsLayout)
+                if state in self.env.old_states:
+                    gameboard = self.rewardsToString(self.env.old_states[state].astype(np.str).ravel().tolist(), move)
+                    gameboardTextEdit = QTextEdit()
+                    gameboardTextEdit.setReadOnly(True);
+                    gameboardTextEdit.append("The bot has encountered the state before so .")
+                    gameboardTextEdit.setText(gameboard)
+                    oldStateRewardsLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
+                    matchOutputLayout.addWidget(oldStateRewardsGroupBox, row, 1)
+                else:
+                    gameboard = self.rewardsToString(np.zeros((3,3)).astype(np.str).ravel().tolist(), move)
+                    gameboardTextEdit = QTextEdit()
+                    gameboardTextEdit.setReadOnly(True);
+                    gameboardTextEdit.append("The bot never encountered the state before so reward is set to the state.")
+                    gameboardTextEdit.append(gameboard)
+                    oldStateRewardsLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
+                    matchOutputLayout.addWidget(oldStateRewardsGroupBox, row, 1)
+
+                newStateRewardsGroupBox = QGroupBox("New State Rewards")
+                newStateRewardsLayout = QGridLayout()
+                newStateRewardsGroupBox.setLayout(newStateRewardsLayout)
+                gameboard = self.rewardsToString(self.env.bot1.states[state].astype(np.str).ravel().tolist(), move)
+                gameboardTextEdit = QTextEdit()
+                gameboardTextEdit.setReadOnly(True);
+                gameboardTextEdit.append(gameboard)
+                newStateRewardsLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
+                matchOutputLayout.addWidget(newStateRewardsGroupBox, row, 2)
+
+                row += 1
+
+            matchOutputLayout.addWidget(QLabel("Do you want to play a new game?"))
+            matchOutputLayout.addWidget(buttonBox)
+            matchOutput.exec()
+
+    def yes(self, dialog):
+        dialog.close()
+        self.newGame()
+
+    def no(self, dialog):
+        dialog.close()
+        pygame.mixer.music.stop()
+        self.layout.setCurrentIndex(0)
+
+    def unserializeState(self, state):
+        board = [['', '', ''], ['', '', ''], ['','','']]
+
+        i = 0
+        for row in range(0, len(board)):
+            for col in range(0, len(board[row])):
+                if state[i] == '1':
+                    board[row][col] = 'O'
+                elif state[i] == '2':
+                    board[row][col] = 'X'
+                else:
+                    board[row][col] = str(i)
+                i += 1
+
+        return board
+
+    def rewardsToString(self, rewards, move):
+        string = ""
+
+        for reward in range(0, len(rewards)):
+            if (reward == move):
+                string += "Box #" + str(reward) + ": " + rewards[reward] + " (Bot placed their move here)\n"
+            else:
+                string += "Box #" + str(reward) + ": " + rewards[reward] + "\n"
+
+        return string
+
+    def gameboardToString(self, gameboard):
+        str = ""
+
+        for row in range(3):
+            for col in range(3):
+                if (col != 2):
+                    if (gameboard[row][col] == ' '):
+                        str +=  gameboard[row][col] + "  | "
+                    else:
+                        str += gameboard[row][col] + " | "
+                else:
+                    str += gameboard[row][col] + " "
+            if (row != 2):
+                str += '\n---------'
+            str += '\n'
+
+        return str
 
     # Clear or make a new game
     def newGame(self):
@@ -203,6 +333,13 @@ class GamePageForPlayerVsComputer(QWidget):
 
         self.env.reset()
         self.gameboard = self.env.state
+
+        self.match = {}
+        self.match['number'] = self.env.matchs
+        self.match['type'] = 'Actual'
+        self.match['player1'] = self.env.player.name
+        self.match['player2'] = self.env.bot1.name
+        self.match['turns'] = []
 
         # Reset the texts on the butotns
         for button in self.arrayOfButtons:

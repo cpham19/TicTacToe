@@ -148,14 +148,12 @@ class TicTacToe(gym.Env):
 				self.punishBotForInvalidMove(self.bot1, -0.5)
 
 			self.validMove = False
-
 		else:
 			self.state[int(target/3)][target%3] = mark
 			self.validMove = True
 			self.turns += 1
 			if(self.turns == 9):
 				self.done = 1
-
 
 		checkState = self.check()
 
@@ -169,11 +167,13 @@ class TicTacToe(gym.Env):
 
 				if (type(self.bot1) == TicTacToeAgent):
 					self.rewardBot(self.bot1, -1)
+					self.reward = -1
 
 				self.playerWins += 1
 			else:
 				if (type(self.bot1) == TicTacToeAgent):
 					self.rewardBot(self.bot1, 1)
+					self.reward = 1
 
 				if (type(self.player) == TicTacToeAgent):
 					self.rewardBot(self.player, -1)
@@ -191,6 +191,7 @@ class TicTacToe(gym.Env):
 
 			if (type(self.bot1) == TicTacToeAgent):
 				self.rewardBot(self.bot1, 0.5)
+				self.reward = 0.5
 
 			#print("DRAW! No one wins!")
 			self.matchs += 1
@@ -198,6 +199,7 @@ class TicTacToe(gym.Env):
 		stateObj['state'] = self.state
 		stateObj['turn'] = self.turns
 		stateObj['done'] = self.done
+		stateObj['reward'] = self.reward
 		stateObj['winner'] = checkState['winner']
 		stateObj['validMove'] = self.validMove
 
@@ -207,19 +209,24 @@ class TicTacToe(gym.Env):
 		# Last move made by player
 		last_state_key, last_move = player.state_order.pop()
 		# Zero matrix
-		player.q_states[last_state_key] = np.zeros((3, 3))
-		# Punishing the player's invalid mod
-		player.q_states[last_state_key].itemset(last_move, reward)
+		player.states[last_state_key] = np.zeros((3, 3))
+		# Punishing the player's invalid move
+		player.states[last_state_key].itemset(last_move, reward)
 
 	# Rewarding or Punishing the bot
 	def rewardBot(self, player, reward):
+		# Used for comparing from old to new
+		self.old_state_order = copy.deepcopy(player.state_order)
+		self.old_states = copy.deepcopy(player.states)
+
 		# Last move made by bot
 		last_state_key, last_move = player.state_order.pop()
-
 		# Zero matrix
-		player.q_states[last_state_key] = np.zeros((3, 3))
+		player.states[last_state_key] = np.zeros((3, 3))
 		# Rewarding or punishing the state
-		player.q_states[last_state_key].itemset(last_move, reward)
+		player.states[last_state_key].itemset(last_move, reward)
+
+		print("Original Reward: " + str(reward))
 
 		# Going through the rest of the moves that the bot has made
 		while (player.state_order):
@@ -228,27 +235,48 @@ class TicTacToe(gym.Env):
 
 			# Reducing reward
 			reward *= player.discount_factor
+			print("Reduced Reward by Discount Factor: " + str(reward))
 
 			# Calculating temporal difference
-			old_state = player.q_states.get(state_key, np.zeros((3, 3)))
-			temporal_difference = player.learning_rate * ((reward * player.q_states[last_state_key]) - old_state)
+			current_state = player.states.get(state_key, np.zeros((3, 3)))
+
+			print()
+			print("CURRENT STATE")
+			print(current_state)
+			print()
+
+			print("LAST STATE")
+			print(player.states[last_state_key])
+			print()
+
+			temporal_difference = player.learning_rate * ((reward * player.states[last_state_key]) - current_state)
+
+			print("Temporal Difference")
+			print(temporal_difference)
+			print()
 
 			# State was encountered before so we increase the reward
-			if (state_key in player.q_states):
+			if (state_key in player.states):
 				reward += temporal_difference.item(last_move)
-				player.q_states[state_key].itemset(move, reward)
+
+				print("State was encountered before so we increase the reward")
+				print("Reward is now " + str(reward))
+				print()
+
+				player.states[state_key].itemset(move, reward)
 
 			# State was not encountered before so we set the reward to a new one
 			else:
 				# Assign a new key to the array of states
-				player.q_states[state_key] = np.zeros((3,3))
+				player.states[state_key] = np.zeros((3,3))
 				reward = temporal_difference.item(last_move)
-				player.q_states[state_key].itemset(move, reward)
+				print("State was not encountered before")
+				print("Reward is now " + str(reward))
+				player.states[state_key].itemset(move, reward)
 
 			# Last state key and move are now the previous state key and move (as we pop moves out of the state_order array)
 			last_state_key = state_key
 			last_move = move
-
 
 	#Reset the board and counters
 	def reset(self):
@@ -259,6 +287,7 @@ class TicTacToe(gym.Env):
 				self.state[row][col] = ' '
 		self.turns = 0
 		self.done = 0
+		self.reward = 0
 		self.validMove = True
 
 		return self.state
@@ -358,7 +387,7 @@ class TicTacToe(gym.Env):
 
 					turn = {}
 					turn['number'] = stateObj['turn']
-					turn['playerTurn'] = self.bot2.name
+					turn['playerTurn'] = self.bot1.name
 					turn['state'] = copy.deepcopy(stateObj['state'])
 					match['turns'].append(turn)
 

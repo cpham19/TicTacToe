@@ -1,81 +1,11 @@
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QPushButton, QVBoxLayout, QGridLayout, QStackedLayout, QDesktopWidget, QDialog, QDialogButtonBox, QGroupBox, QTableView, QHeaderView, QAbstractItemView
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QPushButton, QVBoxLayout, QStackedLayout, QDesktopWidget, QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QLabel
 from PyQt5.QtCore import *
 from gym_tictactoe.envs.tictactoe_agent import PlayerAgent, TicTacToeAgent
 from log import Log
 from gamepage import GamePageForPlayerVsComputer
 from trainingpage import TrainingPage
-import sys, winsound, pygame, gym, gym_tictactoe
-
-class HistoryTableViewModel(QAbstractTableModel):
-    def __init__(self, parent, matchHistory, *args):
-        QAbstractTableModel.__init__(self, parent, *args)
-        # self.matchHistory = [[1, 2, '3', '4', '5', '6'],
-        #                      ['7', '8', '9', '10', '11' ,'12']]
-        self.matchHistory = matchHistory
-        self.header = ['#', 'Type', 'Player #1', 'Player #2', 'Number of Turns', 'Winner']
-
-    # Set the Headers
-    def headerData(self, col, orientation, role):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return QVariant(self.header[col])
-        return QVariant()
-
-    def setDataList(self, matchHistory):
-        self.layoutAboutToBeChanged.emit()
-        self.matchHistory = matchHistory
-        print(self.matchHistory)
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rowCount(0), self.columnCount(0)))
-        self.layoutChanged.emit()
-
-    def data(self, index, role):
-        if not index.isValid():
-            return QVariant()
-        elif index.isValid():
-            if (role == Qt.DisplayRole):
-                return QVariant(self.matchHistory[index.row()][index.column()])
-
-    def rowCount(self, parent):
-        return len(self.matchHistory)
-
-    def columnCount(self, parent):
-        return len(self.header)
-
-# Match History Page
-class MatchHistoryPage(QWidget):
-    def __init__(self, env, layout, historyTable, log):
-        super().__init__()
-        self.env = env
-        self.layout = layout
-        self.historyTable = historyTable
-        self.log = log
-        self.setup()
-
-    def setup(self):
-        # Outer layout for the page
-        self.historyLayout = QGridLayout()
-
-        leaveButton = QPushButton('Main Menu')
-        leaveButton.setStyleSheet('font: bold;background-color: red;font-size: 18px;height: 30px;width:30px')
-        leaveButton.clicked.connect(self.leave)
-        self.historyLayout.addWidget(leaveButton, 0, 0)
-
-        # Inner layout for the groupbox
-        self.innerLayout = QGridLayout()
-        self.innerLayout.addWidget(self.historyTable)
-
-        # Groupbox to contain widgets
-        self.historyGroupBox = QGroupBox("Match History");
-        self.historyGroupBox.setLayout(self.innerLayout)
-
-        # Add Groupbox to outer layout
-        self.historyLayout.addWidget(self.historyGroupBox)
-
-        self.setLayout(self.historyLayout)
-
-    # Go to main menu
-    def leave(self):
-        winsound.Beep(1000, 100)
-        self.layout.setCurrentIndex(0)
+from matchhistorypage import MatchHistoryPage, HistoryTable, HistoryTableViewModel
+import sys, winsound, pygame, gym, gym_tictactoe, numpy as np
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -128,33 +58,51 @@ class MainWindow(QMainWindow):
 
         self.layout.addWidget(self.createMainPage())
 
-        player = PlayerAgent('Calvin', 'O')
-        bot1 = TicTacToeAgent('Botinator', 'X')
-        bot2 = TicTacToeAgent("Terminator", "O")
+        nameDialog = QDialog()
+        buttonBox = QDialogButtonBox(Qt.Horizontal, nameDialog)
+        buttonBox.setStandardButtons(QDialogButtonBox.Ok)
+        buttonBox.accepted.connect(nameDialog.accept)
+        formLayout = QFormLayout()
+        playerNameLineEdit = QLineEdit()
+        playerNameLineEdit.setText("Calvin")
+        bot1NameLineEdit = QLineEdit()
+        bot1NameLineEdit.setText("Mr. Roboto")
+        bot2NameLineEdit = QLineEdit()
+        bot2NameLineEdit.setText("Terminator")
+        formLayout.addRow(QLabel("Player's Name:"), playerNameLineEdit)
+        formLayout.addRow(QLabel("Bot #1's Name:"), bot1NameLineEdit)
+        formLayout.addRow(QLabel("Bot #2;s Name:"), bot2NameLineEdit)
+        formLayout.addWidget(buttonBox)
+        nameDialog.setWindowTitle("Enter names for you and the bots")
+        nameDialog.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.CustomizeWindowHint)
+        nameDialog.setLayout(formLayout)
+        nameDialog.exec()
+
+        while (playerNameLineEdit.text() == '' or bot1NameLineEdit.text() == '' or bot2NameLineEdit.text() == ''):
+            nameDialog.exec()
+            winsound.Beep(1000, 100)
+            if (playerNameLineEdit.text() != '' or bot1NameLineEdit.text() != '' or bot2NameLineEdit.text() != ''):
+                break
+
+        player = PlayerAgent(playerNameLineEdit.text(), 'O')
+        bot1 = TicTacToeAgent(bot1NameLineEdit.text(), 'X')
+        bot2 = TicTacToeAgent(bot2NameLineEdit.text(), "O")
 
         self.env = gym.make('tictactoe-v0')
         self.env.init(player, bot1, bot2)
 
-        self.gamePageForPlayerVsComputer = GamePageForPlayerVsComputer(self.env, self.layout, self.log)
-        self.layout.addWidget(self.gamePageForPlayerVsComputer)
+        self.historyTableViewModel = HistoryTableViewModel(self, self.env.formattedMatchHistory)
+        self.gamePageForPlayerVsComputer = GamePageForPlayerVsComputer(self.env, self.layout, self.historyTableViewModel, self.log)
 
         # History table displaying various info about the matches
-        self.historyTable = QTableView()
-        self.historyTable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.historyTable.verticalHeader().setVisible(True)
-        self.historyTable.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.historyTable.verticalHeader().setDefaultSectionSize(50)
-        self.historyTable.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.historyTable.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.historyTable.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.historyTable.setSortingEnabled(True)
-        self.historyTableViewModel = HistoryTableViewModel(self, self.env.formattedMatchHistory)
+        self.historyTable = HistoryTable(self.env)
         self.historyTable.setModel(self.historyTableViewModel)
-
         self.trainingPage = TrainingPage(self.env, self.layout, self.historyTableViewModel, self.log)
-        self.layout.addWidget(self.trainingPage)
-
         self.viewMatchHistoryPage = MatchHistoryPage(self.env, self.layout, self.historyTable, self.log)
+
+
+        self.layout.addWidget(self.gamePageForPlayerVsComputer)
+        self.layout.addWidget(self.trainingPage)
         self.layout.addWidget(self.viewMatchHistoryPage)
 
         self.layout.setCurrentIndex(0)
@@ -231,7 +179,6 @@ class MainWindow(QMainWindow):
 
     def selectDifficulty(self, exploration_rate, dialog):
         self.env.bot1.exploration_rate = exploration_rate
-        print(self.env.bot1.exploration_rate)
         dialog.close()
 
     # Start the game (player vs cpu)
