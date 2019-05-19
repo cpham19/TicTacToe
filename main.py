@@ -1,3 +1,9 @@
+# Code inspired by ...
+# apoddar573 at https://medium.com/@apoddar573/making-your-own-custom-environment-in-gym-c3b65ff8cdaa and https://github.com/apoddar573/Tic-Tac-Toe-Gym_Environment/ for basic Tic Tac Toe Gym Environment
+# giladariel at https://towardsdatascience.com/reinforcement-learning-and-deep-reinforcement-learning-with-tic-tac-toe-588d09c41dda and https://github.com/giladariel/TicTacToe_RL/ for Reinforcement Learning implementation
+# AmreshVenugopal at https://github.com/AmreshVenugopal/tic_tac_toe for Tic Tac Toe Agent that resides in the Tic Tac Toe Gym environment
+
+
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QPushButton, QVBoxLayout, QStackedLayout, QDesktopWidget, QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QLabel
 from PyQt5.QtCore import *
 from gym_tictactoe.envs.tictactoe_agent import PlayerAgent, TicTacToeAgent

@@ -209,7 +209,7 @@ class GamePageForPlayerVsComputer(QWidget):
             calculationInfoTextEdit.append("CURRENT STATE\n[[0. 0. 0.]\n [0. 0. 0.] \n [0. 0. 0.]]")
             calculationInfoTextEdit.append("AND")
             calculationInfoTextEdit.append("LAST STATE\n[[0. 1. 0.]\n [0. 0. 0.] \n [0. 0. 0.]] where Bot placed a move on the 2nd box\n")
-            calculationInfoTextEdit.append("Temporal Difference = " + str(self.env.bot1.learning_rate) + " * (" + str(stateObj['reward'] * self.env.bot1.discount_factor) + " * 1) - 0 = " + str(self.env.bot1.learning_rate * (stateObj['reward'] * self.env.bot1.discount_factor)))
+            calculationInfoTextEdit.append("Temporal Difference = " + str(self.env.bot1.learning_rate) + " * ((" + str(stateObj['reward'] * self.env.bot1.discount_factor) + " * 1) - 0) = " + str(self.env.bot1.learning_rate * (stateObj['reward'] * self.env.bot1.discount_factor)))
             calculationInfoTextEdit.append("So new state is...\n")
             calculationInfoTextEdit.append("NEW STATE\n[[0. -0.005. 0.]\n [0. 0. 0.] \n [0. 0. 0.]] where Bot placed a move on the 2nd box\n")
 
@@ -229,25 +229,25 @@ class GamePageForPlayerVsComputer(QWidget):
                 stateLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
                 matchOutputLayout.addWidget(stateGroupBox, row, 0)
 
-                oldStateRewardsGroupBox = QGroupBox("Old State Rewards")
-                oldStateRewardsLayout = QGridLayout()
-                oldStateRewardsGroupBox.setLayout(oldStateRewardsLayout)
+                currentStateRewardsGroupBox = QGroupBox("Current State Rewards")
+                currentStateRewardsLayout = QGridLayout()
+                currentStateRewardsGroupBox.setLayout(currentStateRewardsLayout)
                 if state in self.env.old_states:
                     gameboard = self.rewardsToString(self.env.old_states[state].astype(np.str).ravel().tolist(), move)
                     gameboardTextEdit = QTextEdit()
                     gameboardTextEdit.setReadOnly(True);
-                    gameboardTextEdit.append("The bot has encountered the state before so .")
+                    gameboardTextEdit.append("The bot has encountered the state before so we increase the reward.")
                     gameboardTextEdit.setText(gameboard)
-                    oldStateRewardsLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
-                    matchOutputLayout.addWidget(oldStateRewardsGroupBox, row, 1)
+                    currentStateRewardsLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
+                    matchOutputLayout.addWidget(currentStateRewardsGroupBox, row, 1)
                 else:
                     gameboard = self.rewardsToString(np.zeros((3,3)).astype(np.str).ravel().tolist(), move)
                     gameboardTextEdit = QTextEdit()
                     gameboardTextEdit.setReadOnly(True);
-                    gameboardTextEdit.append("The bot never encountered the state before so reward is set to the state.")
+                    gameboardTextEdit.append("The bot never encountered the state before so we set it to the reward.")
                     gameboardTextEdit.append(gameboard)
-                    oldStateRewardsLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
-                    matchOutputLayout.addWidget(oldStateRewardsGroupBox, row, 1)
+                    currentStateRewardsLayout.addWidget(gameboardTextEdit, 0, 0, 1, 2)
+                    matchOutputLayout.addWidget(currentStateRewardsGroupBox, row, 1)
 
                 newStateRewardsGroupBox = QGroupBox("New State Rewards")
                 newStateRewardsLayout = QGridLayout()
