@@ -226,8 +226,8 @@ class TicTacToe(gym.Env):
 		# Rewarding or punishing the state
 		player.states[last_state_key].itemset(last_move, reward)
 
-		print("Original Reward: " + str(reward))
-		print("Learning Rate: " + str(self.bot1.learning_rate))
+		# print("Original Reward: " + str(reward))
+		# print("Learning Rate: " + str(self.bot1.learning_rate))
 
 		# Going through the rest of the moves that the bot has made
 		while (player.state_order):
@@ -236,7 +236,7 @@ class TicTacToe(gym.Env):
 
 			# Reducing reward
 			reward *= player.discount_factor
-			print("Reduced Reward by Discount Factor: " + str(reward))
+			# print("Reduced Reward by Discount Factor: " + str(reward))
 
 			# Calculating temporal difference formula (difference between values of state on the basis of time)
 			# Found at https://en.wikipedia.org/wiki/Temporal_difference_learning and https://detailed.af/reinforcement/)
@@ -244,27 +244,27 @@ class TicTacToe(gym.Env):
 			current_state = player.states.get(state_key, np.zeros((3, 3)))
 			temporal_difference = current_state + player.learning_rate * ((reward * last_state) - current_state)
 
-			print()
-			print("CURRENT STATE")
-			print(current_state)
-			print()
-
-			print("LAST STATE")
-			print(player.states[last_state_key])
-			print()
-
-			print("Temporal Difference Calculation: " + str(current_state.item(last_move)) + " + " + str(player.learning_rate) + " *  ((" + str(reward) + " * " + str(last_state.item(last_move)) + ") - " + str(current_state.item(last_move)) + ") = " + str(temporal_difference.item(last_move)))
-			print("Temporal Difference")
-			print(temporal_difference)
-			print()
+			# print()
+			# print("CURRENT STATE")
+			# print(current_state)
+			# print()
+			#
+			# print("LAST STATE")
+			# print(player.states[last_state_key])
+			# print()
+			#
+			# print("Temporal Difference Calculation: " + str(current_state.item(last_move)) + " + " + str(player.learning_rate) + " *  ((" + str(reward) + " * " + str(last_state.item(last_move)) + ") - " + str(current_state.item(last_move)) + ") = " + str(temporal_difference.item(last_move)))
+			# print("Temporal Difference")
+			# print(temporal_difference)
+			# print()
 
 			# State was encountered before so we increase the reward
 			if (state_key in player.states):
 				reward += temporal_difference.item(last_move)
 
-				print("State was encountered before so we increase the reward")
-				print("Reward is now " + str(reward))
-				print()
+				# print("State was encountered before so we increase the reward")
+				# print("Reward is now " + str(reward))
+				# print()
 
 				player.states[state_key].itemset(move, reward)
 
@@ -273,8 +273,8 @@ class TicTacToe(gym.Env):
 				# Assign a new key to the array of states and set its reward
 				player.states[state_key] = np.zeros((3,3))
 				reward = temporal_difference.item(last_move)
-				print("State was not encountered before")
-				print("Reward is now " + str(reward))
+				# print("State was not encountered before")
+				# print("Reward is now " + str(reward))
 				player.states[state_key].itemset(move, reward)
 
 			# Last state key and move are now the previous state key and move (as we pop moves out of the state_order array)

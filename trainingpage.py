@@ -27,6 +27,10 @@ class TrainingPage(QWidget):
         self.botNameLabelForBot1.setStyleSheet("font: bold;font-size: 18px;height: 30px")
         self.trainingLayout.addWidget(self.botNameLabelForBot1, 1, 0)
 
+        self.loadStatesForBot1Button = QPushButton("Load States for Bot #1")
+        self.trainingLayout.addWidget(self.loadStatesForBot1Button, 1, 1)
+        self.loadStatesForBot1Button.clicked.connect(lambda: self.env.bot1.loadStates(self))
+
         self.learningRateLabelForBot1 = QLabel("Learning rate: ")
         self.learningRateLabelForBot1.setStyleSheet("font: bold;font-size: 18px;height: 30px")
         self.trainingLayout.addWidget(self.learningRateLabelForBot1, 2, 0)
@@ -72,6 +76,10 @@ class TrainingPage(QWidget):
         self.botNameLabelForBot2 = QLabel("Bot Name: " + self.env.bot2.name)
         self.botNameLabelForBot2.setStyleSheet("font: bold;font-size: 18px;height: 30px")
         self.trainingLayout.addWidget(self.botNameLabelForBot2, 1, 3)
+
+        self.loadStatesForBot2Button = QPushButton("Load States For Bot #2")
+        self.trainingLayout.addWidget(self.loadStatesForBot2Button, 1, 4)
+        self.loadStatesForBot2Button.clicked.connect(lambda: self.env.bot2.loadStates(self))
 
         self.learningRateLabelForBot2 = QLabel("Learning rate: ")
         self.learningRateLabelForBot2.setStyleSheet("font: bold;font-size: 18px;height: 30px")
@@ -175,6 +183,9 @@ class TrainingPage(QWidget):
         self.totalTrainingDrawsLabel.setText("Total Draws: " + str(self.env.totalTrainingDraws))
 
         self.historyTableViewModel.setDataList(self.env.formattedMatchHistory)
+
+        self.env.bot1.saveStates()
+        self.env.bot2.saveStates()
 
 
     # Go to main menu

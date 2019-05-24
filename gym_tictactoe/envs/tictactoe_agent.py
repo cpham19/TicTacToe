@@ -1,4 +1,5 @@
-import random, numpy as np
+from PyQt5.QtWidgets import QFileDialog
+import random, numpy as np, csv, os
 
 # Represents the player
 class PlayerAgent:
@@ -146,3 +147,63 @@ class TicTacToeAgent(PlayerAgent):
 		move = random.choice(possible_moves)
 		self.state_order.append((state_key, move))
 		return move
+
+	# Load States
+	def loadStates(self, widget):
+		path = os.getcwd() + '/bot_states/'
+
+		fileName = QFileDialog.getOpenFileName(widget, "Open States CSV File", path, "Comma-Separated Values File (*.csv);;All Files (*)")
+
+		# Return if user doesn't select a file
+		if (fileName[0] == ''):
+			print("User didn't open a file.")
+			return
+
+		# Start loading the states into the bot's dictionary
+		self.states = {}
+		with open(fileName[0]) as csv_file:
+			csv_reader = csv.reader(csv_file, delimiter=',')
+
+			counter = 0
+			for row in csv_reader:
+				# Skip the header row
+				if counter == 0:
+					counter += 1
+					continue
+				else:
+					state = row[0]
+					box0 = float(row[1])
+					box1 = float(row[2])
+					box2 = float(row[3])
+					box3 = float(row[4])
+					box4 = float(row[5])
+					box5 = float(row[6])
+					box6 = float(row[7])
+					box7 = float(row[8])
+					box8 = float(row[9])
+
+					rewardMatrix = np.zeros((3, 3))
+					rewardMatrix[0][0] = box0
+					rewardMatrix[0][1] = box1
+					rewardMatrix[0][2] = box2
+					rewardMatrix[1][0] = box3
+					rewardMatrix[1][1] = box4
+					rewardMatrix[1][2] = box5
+					rewardMatrix[2][0] = box6
+					rewardMatrix[2][1] = box7
+					rewardMatrix[2][2] = box8
+					self.states[state] = rewardMatrix
+				counter += 1
+
+	# Save States
+	def saveStates(self):
+		columns = ['state','box0','box1','box2','box3','box4','box5','box6','box7','box8']
+		path = os.getcwd() +  '/bot_states/'
+
+		with open(path + self.name + '.csv', mode='w') as csv_file:
+			writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+			writer.writerow(columns)
+			for state in self.states:
+				# One-dimensional array of the rewards matrix
+				rewardsArray = np.array(self.states[state]).ravel()
+				writer.writerow([state, str(rewardsArray[0]), str(rewardsArray[1]), str(rewardsArray[2]), str(rewardsArray[3]), str(rewardsArray[4]), str(rewardsArray[5]), str(rewardsArray[6]), str(rewardsArray[7]), str(rewardsArray[8])])
